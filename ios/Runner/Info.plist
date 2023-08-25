@@ -47,5 +47,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+    <string>For sending photo to server.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Not need. Package by default requests permissions</string>
 </dict>
 </plist>
