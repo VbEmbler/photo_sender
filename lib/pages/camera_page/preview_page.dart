@@ -12,15 +12,13 @@ late List<CameraDescription> cameras;
 class PreviewPage extends StatefulWidget {
   final String? imagePath;
 
-  const PreviewPage({Key? key, this.imagePath})
-      : super(key: key);
+  const PreviewPage({Key? key, this.imagePath}) : super(key: key);
 
   @override
   State<PreviewPage> createState() => _PreviewPageState();
 }
 
 class _PreviewPageState extends State<PreviewPage> {
-
   late final CameraController controller;
   late LocationPermission permission;
 
@@ -28,10 +26,10 @@ class _PreviewPageState extends State<PreviewPage> {
   ImageUploadDatasource uploadDatasource = ImageUploadDatasource();
 
   bool _isCameraReady = false;
+  bool _isSending = false;
 
   XFile? image;
   String path = '';
-
 
   @override
   void initState() {
@@ -51,31 +49,32 @@ class _PreviewPageState extends State<PreviewPage> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        if(context.mounted) {
+        if (context.mounted) {
           showSnackBar(LanguageUtil.locationPermissionDenied, context);
         }
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      if(context.mounted) {
-        showSnackBar(LanguageUtil.locationPermissionsArePermanentlyDenied, context);
+      if (context.mounted) {
+        showSnackBar(
+            LanguageUtil.locationPermissionsArePermanentlyDenied, context);
       }
     }
   }
 
   Future<void> _setupCamera() async {
     try {
-      controller =  CameraController(cameras[0], ResolutionPreset.medium);
+      controller = CameraController(cameras[0], ResolutionPreset.medium);
       await controller.initialize();
     } on CameraException catch (e) {
-        switch (e.code) {
-          case 'CameraAccessDenied':
-            showSnackBar(LanguageUtil.pleaseEnableAccessForCamera, context);
-            break;
-          default:
-            showSnackBar(LanguageUtil.somethingWentWrongWithCamera, context);
-            break;
+      switch (e.code) {
+        case 'CameraAccessDenied':
+          showSnackBar(LanguageUtil.pleaseEnableAccessForCamera, context);
+          break;
+        default:
+          showSnackBar(LanguageUtil.somethingWentWrongWithCamera, context);
+          break;
       }
     }
     if (!mounted) return;
@@ -97,28 +96,30 @@ class _PreviewPageState extends State<PreviewPage> {
           SizedBox(
               height: 350,
               width: double.infinity,
-              child: CameraPreview(controller)
-          ),
+              child: CameraPreview(controller)),
           Padding(
             padding: const EdgeInsets.only(left: 10, top: 15, right: 10),
             child: TextField(
               controller: commentController,
               decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                hintText: LanguageUtil.enterCommentForPhoto
-              ),
+                  border: const OutlineInputBorder(),
+                  hintText: LanguageUtil.enterCommentForPhoto),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.only(left: 10, top: 15, right: 10, bottom: 15),
+            padding:
+                const EdgeInsets.only(left: 10, top: 15, right: 10, bottom: 15),
             child: SizedBox(
               height: 50,
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () async{
-                  await sendPhoto(context);
-                },
-                child: const Row(
+                onPressed: _isSending
+                    ? null
+                    : () async {
+                        toggleIsSending();
+                        await sendPhoto(context);
+                      },
+                child: _isSending ? const CircularProgressIndicator() : const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Padding(
@@ -129,7 +130,7 @@ class _PreviewPageState extends State<PreviewPage> {
                       ),
                     ),
                     Text(
-                        'Send photo',
+                      'Send photo',
                       style: TextStyle(
                         fontSize: 35,
                         fontWeight: FontWeight.bold,
@@ -150,24 +151,35 @@ class _PreviewPageState extends State<PreviewPage> {
       final xFile = await controller.takePicture();
       path = xFile.path;
 
-      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
       try {
         var response = await uploadDatasource.uploadImage(
-            photoPath: path,
-            comment: commentController.value.text,
-            position: position,
+          photoPath: path,
+          comment: commentController.value.text,
+          position: position,
         );
 
-        if(response is ApiSuccess) {
+        if (response is ApiSuccess) {
+          toggleIsSending();
           if (context.mounted) showSnackBar(LanguageUtil.photoSent, context);
         }
       } on ApiFailure catch (e) {
-        if(context.mounted) showSnackBar(e.errorResponse, context);
+        toggleIsSending();
+        if (context.mounted) showSnackBar(e.errorResponse, context);
       } catch (e) {
-        if(context.mounted) showSnackBar(e.toString(), context);
+        toggleIsSending();
+        if (context.mounted) showSnackBar(e.toString(), context);
       }
     } catch (e) {
+      toggleIsSending();
       showSnackBar(e.toString(), context);
     }
+  }
+
+  toggleIsSending() {
+    setState(() {
+      _isSending = !_isSending;
+    });
   }
 }
